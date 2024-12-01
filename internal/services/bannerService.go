@@ -2,7 +2,6 @@ package services
 
 import (
 	"ecom-backend-test-task/internal/database"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -15,14 +14,14 @@ type BannerService struct {
 	statsByMinuteCache map[int]map[uint64]database.CounterStats
 }
 
-func (s *BannerService) RunBannerCounterUpdate() {
+func (s *BannerService) RunCounterUpdater() {
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
 			if len(s.statsByMinuteCache) != 0 {
 				err := s.DBRepo.UpdateOrCreateBannerCounterStats(s.statsByMinuteCache)
 				if err != nil {
-					log.Fatalln(fmt.Errorf("error while saving stats to db: %v", err))
+					log.Fatalf("error while saving stats into db: %v \n", err)
 				}
 				mutex.Lock()
 				s.statsByMinuteCache = make(map[int]map[uint64]database.CounterStats)

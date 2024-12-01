@@ -44,13 +44,13 @@ func OpenDB(dsn string) (*gorm.DB, error) {
 }
 
 func CheckIfShouldMigrate(db *gorm.DB) {
-	shouldMigrate := flag.Bool("runMigrations", false, "whether or not to run db migration")
+	shouldMigrate := flag.Bool("runMigrations", false, "whether or not to run db migrations")
 	flag.Parse()
 
 	if *shouldMigrate {
 		err := database.MigrateDB(db)
 		if err != nil {
-			log.Fatalf("Could not migrate DB. Error - %v", err.Error())
+			log.Fatalf("could not run db migrations. Error - %v", err.Error())
 		}
 		log.Println("Successfully migrated DB")
 		return

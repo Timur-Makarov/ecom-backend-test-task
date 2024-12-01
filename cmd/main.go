@@ -17,7 +17,7 @@ func main() {
 
 	apiComponents := config.SetupAPIComponents(db)
 
-	apiComponents.Services.BannerService.RunBannerCounterUpdate()
+	apiComponents.Services.BannerService.RunCounterUpdater()
 
 	http.HandleFunc("/banner/add", apiComponents.Handlers.AddBanner)
 	http.HandleFunc("/counter/{bannerID}", apiComponents.Handlers.UpdateBannerCounterStats)
