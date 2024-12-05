@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"ecom-backend-test-task/internal/pkg/app"
 	"encoding/json"
+	"fmt"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -13,21 +16,25 @@ import (
 	"time"
 )
 
-// call the testing init before the application one.
-var _ = func() bool {
-	testing.Init()
-	return true
-}()
+type App struct {
+	repositories *app.Repositories
+	handlers     *app.Handlers
+	services     *app.Services
+}
 
-var a *app.App
+var a = App{}
 
 func init() {
-	ap, err := app.NewApp()
+	hardCodedDSN := "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+
+	db, err := gorm.Open(postgres.Open(hardCodedDSN), &gorm.Config{})
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.Fatalln(fmt.Errorf("failed to init db connection: %w", err))
 	}
 
-	a = ap
+	a.repositories = app.GetRepositories(db)
+	a.services = app.GetServices(a.repositories)
+	a.handlers = app.GetHandlers(a.services)
 }
 
 func TestAddBanner(t *testing.T) {
@@ -49,7 +56,7 @@ func TestAddBanner(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(a.Handlers.BannerHandler.AddBanner)
+	handler := http.HandlerFunc(a.handlers.BannerHandler.AddBanner)
 
 	handler.ServeHTTP(rr, req)
 
@@ -86,7 +93,7 @@ func TestGetBannerCounterStats(t *testing.T) {
 	req.SetPathValue("bannerID", hardCodedBannerID)
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(a.Handlers.BannerHandler.GetCounterStats)
+	handler := http.HandlerFunc(a.handlers.BannerHandler.GetCounterStats)
 
 	handler.ServeHTTP(rr, req)
 
@@ -118,7 +125,7 @@ func TestUpdateBannerCounterStats(t *testing.T) {
 	req.SetPathValue("bannerID", hardCodedBannerID)
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(a.Handlers.BannerHandler.UpdateCounterStats)
+	handler := http.HandlerFunc(a.handlers.BannerHandler.UpdateCounterStats)
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {

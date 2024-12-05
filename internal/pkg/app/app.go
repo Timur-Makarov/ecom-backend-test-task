@@ -12,7 +12,7 @@ import (
 
 type App struct {
 	repositories *Repositories
-	Handlers     *Handlers
+	handlers     *Handlers
 	services     *Services
 	closeCh      chan os.Signal
 	fatalCh      chan error
@@ -59,7 +59,7 @@ func NewApp() (*App, error) {
 
 func (a *App) Run() error {
 	go func() {
-		slog.Info("Server is running on :8080")
+		a.logger.Info("Server is running on :8080")
 		err := a.server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			a.logger.Error("http server failed", "error", err)
@@ -68,10 +68,10 @@ func (a *App) Run() error {
 
 	select {
 	case <-a.closeCh:
-		slog.Info("App is shutting down")
+		a.logger.Info("App is shutting down")
 		a.initClose()
 	case err := <-a.fatalCh:
-		slog.Error(err.Error())
+		a.logger.Error(err.Error())
 		a.initClose()
 	}
 

@@ -10,15 +10,15 @@ import (
 func (a *App) initServer(db *gorm.DB) error {
 	a.repositories = GetRepositories(db)
 	a.services = GetServices(a.repositories)
-	a.Handlers = GetHandlers(a.services)
+	a.handlers = GetHandlers(a.services)
 
 	server := &http.Server{
 		Addr: "127.0.0.1:8080",
 	}
 
-	http.HandleFunc("/banner/add", a.Handlers.BannerHandler.AddBanner)
-	http.HandleFunc("/counter/{bannerID}", a.Handlers.BannerHandler.UpdateCounterStats)
-	http.HandleFunc("/stats/{bannerID}", a.Handlers.BannerHandler.GetCounterStats)
+	http.HandleFunc("/banner/add", a.handlers.BannerHandler.AddBanner)
+	http.HandleFunc("/counter/{bannerID}", a.handlers.BannerHandler.UpdateCounterStats)
+	http.HandleFunc("/stats/{bannerID}", a.handlers.BannerHandler.GetCounterStats)
 
 	a.server = server
 
