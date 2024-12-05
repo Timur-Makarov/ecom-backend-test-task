@@ -2,9 +2,9 @@ package main
 
 import (
 	"bytes"
-	"ecom-backend-test-task/config"
-	"ecom-backend-test-task/internal/services"
+	"ecom-backend-test-task/internal/pkg/app"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,21 +13,24 @@ import (
 	"time"
 )
 
-func setup(t *testing.T) *config.APIComponents {
-	hardCodedDSN := "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable"
-	db, err := config.OpenDB(hardCodedDSN)
+// call the testing init before the application one.
+var _ = func() bool {
+	testing.Init()
+	return true
+}()
 
+var a *app.App
+
+func init() {
+	ap, err := app.NewApp()
 	if err != nil {
-		t.Fatal(err)
+		log.Fatalln(err.Error())
 	}
 
-	apiComponents := config.SetupAPIComponents(db)
-	return apiComponents
+	a = ap
 }
 
 func TestAddBanner(t *testing.T) {
-	apiComponents := setup(t)
-
 	type Request struct {
 		Name string `json:"name"`
 	}
@@ -46,7 +49,7 @@ func TestAddBanner(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(apiComponents.Handlers.AddBanner)
+	handler := http.HandlerFunc(a.Handlers.BannerHandler.AddBanner)
 
 	handler.ServeHTTP(rr, req)
 
@@ -56,8 +59,6 @@ func TestAddBanner(t *testing.T) {
 }
 
 func TestGetBannerCounterStats(t *testing.T) {
-	apiComponents := setup(t)
-
 	hardCodedBannerID := "1"
 
 	requestURL := url.URL{
@@ -85,7 +86,7 @@ func TestGetBannerCounterStats(t *testing.T) {
 	req.SetPathValue("bannerID", hardCodedBannerID)
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(apiComponents.Handlers.GetBannerCounterStats)
+	handler := http.HandlerFunc(a.Handlers.BannerHandler.GetCounterStats)
 
 	handler.ServeHTTP(rr, req)
 
@@ -93,15 +94,21 @@ func TestGetBannerCounterStats(t *testing.T) {
 		t.Errorf("Error [%v]: %v", status, rr.Body.String())
 	}
 
-	var response services.Response
+	type GetCounterStatsDTO struct {
+		BannerID      uint64 `json:"bannerId"`
+		Count         uint64 `json:"count"`
+		TimestampFrom uint64 `json:"timestampFrom"`
+		TimestampTo   uint64 `json:"timestampTo"`
+	}
+
+	var response GetCounterStatsDTO
+
 	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response body: %v", err)
 	}
 }
 
 func TestUpdateBannerCounterStats(t *testing.T) {
-	apiComponents := setup(t)
-
 	hardCodedBannerID := "1"
 
 	req, err := http.NewRequest("POST", "/counter/"+hardCodedBannerID, nil)
@@ -111,7 +118,7 @@ func TestUpdateBannerCounterStats(t *testing.T) {
 	req.SetPathValue("bannerID", hardCodedBannerID)
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(apiComponents.Handlers.UpdateBannerCounterStats)
+	handler := http.HandlerFunc(a.Handlers.BannerHandler.UpdateCounterStats)
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {

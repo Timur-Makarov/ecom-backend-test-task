@@ -1,36 +1,29 @@
-package database
+package repositories
 
 import (
 	"context"
+	"ecom-backend-test-task/internal/pkg/database"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"time"
 )
 
-// DBRepository contains all of the queries to the database.
-// If it gets any bigger, then it should be split into multiple repositories.
-type DBRepository struct {
+type BannerRepository struct {
 	DB *gorm.DB
 }
 
-func GetDBRepository(db *gorm.DB) *DBRepository {
-	return &DBRepository{
-		DB: db,
-	}
-}
-
-func (r DBRepository) SaveBanner(newBanner Banner) error {
+func (r BannerRepository) SaveBanner(newBanner database.Banner) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	return r.DB.WithContext(ctx).Create(&newBanner).Error
 }
 
-func (r DBRepository) UpdateOrCreateBannerCounterStats(stats map[int]map[uint64]CounterStats) error {
+func (r BannerRepository) UpdateOrCreateBannerCounterStats(stats map[int]map[uint64]database.CounterStats) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	var allCounterStats []CounterStats
+	var allCounterStats []database.CounterStats
 
 	for _, value := range stats {
 		for _, v := range value {
@@ -53,14 +46,14 @@ func (r DBRepository) UpdateOrCreateBannerCounterStats(stats map[int]map[uint64]
 	return query.Error
 }
 
-func (r DBRepository) GetBannerCounterStats(bannerID, tsFrom, tsTo uint64) ([]CounterStats, error) {
+func (r BannerRepository) GetBannerCounterStats(bannerID, tsFrom, tsTo uint64) ([]database.CounterStats, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var stats []CounterStats
+	var stats []database.CounterStats
 
 	err := r.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var banner Banner
+		var banner database.Banner
 
 		if err := tx.First(&banner, bannerID).Error; err != nil {
 			return err

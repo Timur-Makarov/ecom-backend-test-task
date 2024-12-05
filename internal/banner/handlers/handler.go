@@ -1,14 +1,14 @@
 package handlers
 
 import (
-	"ecom-backend-test-task/internal/services"
+	"ecom-backend-test-task/internal/banner/services"
 	"encoding/json"
 	"net/http"
 	"strconv"
 )
 
 type BannerHandler struct {
-	Services *services.Services
+	Service services.BannerService
 }
 
 func (h BannerHandler) AddBanner(w http.ResponseWriter, req *http.Request) {
@@ -30,14 +30,14 @@ func (h BannerHandler) AddBanner(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
-	err := h.Services.BannerService.AddBanner(reqBody.Name)
+	err := h.Service.AddBanner(reqBody.Name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
-func (h BannerHandler) UpdateBannerCounterStats(w http.ResponseWriter, req *http.Request) {
+func (h BannerHandler) UpdateCounterStats(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -50,10 +50,10 @@ func (h BannerHandler) UpdateBannerCounterStats(w http.ResponseWriter, req *http
 		return
 	}
 
-	h.Services.BannerService.UpdateBannerCounterStats(uint64(bannerIdInt))
+	h.Service.UpdateBannerCounterStats(uint64(bannerIdInt))
 }
 
-func (h BannerHandler) GetBannerCounterStats(w http.ResponseWriter, req *http.Request) {
+func (h BannerHandler) GetCounterStats(w http.ResponseWriter, req *http.Request) {
 	bannerIdString := req.PathValue("bannerID")
 	bannerIdInt, err := strconv.Atoi(bannerIdString)
 	if err != nil || bannerIdInt < 0 {
@@ -76,7 +76,7 @@ func (h BannerHandler) GetBannerCounterStats(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	res, err := h.Services.BannerService.GetBannerCounterStats(uint64(bannerIdInt), uint64(tsFromInt), uint64(tsToInt))
+	res, err := h.Service.GetCounterStats(uint64(bannerIdInt), uint64(tsFromInt), uint64(tsToInt))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

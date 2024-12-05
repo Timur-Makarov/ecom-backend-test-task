@@ -11,7 +11,7 @@ func main() {
 	const (
 		numRequests = 1000
 		concurrency = 50
-		url         = "http://localhost:4000/counter/1"
+		url         = "http://localhost:8080/counter/1"
 	)
 
 	var wg sync.WaitGroup
