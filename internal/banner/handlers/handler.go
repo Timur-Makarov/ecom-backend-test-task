@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"ecom-backend-test-task/internal/banner/domain"
 	"ecom-backend-test-task/internal/banner/services"
-	"encoding/json"
-	"net/http"
+	"github.com/gofiber/fiber/v2"
 	"strconv"
 )
 
@@ -11,82 +11,67 @@ type BannerHandler struct {
 	Service services.BannerService
 }
 
-func (h BannerHandler) AddBanner(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h BannerHandler) AddBanner(c *fiber.Ctx) error {
 	type RequestBody struct {
 		Name string `json:"name"`
 	}
 
 	var reqBody RequestBody
 
-	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(&reqBody); err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
+	if err := c.BodyParser(&reqBody); err != nil {
+		return domain.InvalidInputError
 	}
-	defer req.Body.Close()
 
 	err := h.Service.AddBanner(reqBody.Name)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return domain.InternalServerError
 	}
+
+	return nil
 }
 
-func (h BannerHandler) UpdateCounterStats(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	bannerIdString := req.PathValue("bannerID")
+func (h BannerHandler) UpdateCounterStats(c *fiber.Ctx) error {
+	bannerIdString := c.Params("bannerID")
 	bannerIdInt, err := strconv.Atoi(bannerIdString)
-	if err != nil || bannerIdInt < 0 {
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
+
+	if err != nil || bannerIdInt <= 0 {
+		return domain.InvalidPathError
 	}
 
 	h.Service.UpdateBannerCounterStats(uint64(bannerIdInt))
+	return nil
 }
 
-func (h BannerHandler) GetCounterStats(w http.ResponseWriter, req *http.Request) {
-	bannerIdString := req.PathValue("bannerID")
+func (h BannerHandler) GetCounterStats(c *fiber.Ctx) error {
+	bannerIdString := c.Params("bannerID")
 	bannerIdInt, err := strconv.Atoi(bannerIdString)
-	if err != nil || bannerIdInt < 0 {
-		http.Error(w, "Bad Request: invalid bannerID", http.StatusBadRequest)
-		return
+
+	if err != nil || bannerIdInt <= 0 {
+		return domain.InvalidPathError
 	}
 
-	tsFromString := req.URL.Query().Get("tsFrom")
-	tsToString := req.URL.Query().Get("tsTo")
+	tsFromString := c.Query("tsFrom")
+	tsToString := c.Query("tsTo")
 
 	tsFromInt, err := strconv.Atoi(tsFromString)
 	if err != nil || tsFromInt < 0 {
-		http.Error(w, "Bad request: invalid tsFrom", http.StatusBadRequest)
-		return
+		return domain.InvalidParamsError
 	}
 
 	tsToInt, err := strconv.Atoi(tsToString)
 	if err != nil || tsToInt < 0 {
-		http.Error(w, "Bad request: invalid tsFrom", http.StatusBadRequest)
-		return
+		return domain.InvalidParamsError
 	}
 
 	res, err := h.Service.GetCounterStats(uint64(bannerIdInt), uint64(tsFromInt), uint64(tsToInt))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return domain.InternalServerError
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	encoder := json.NewEncoder(w)
-	if err := encoder.Encode(res); err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	err = c.JSON(res)
+	if err != nil {
+		return domain.InternalServerError
 	}
+
+	return nil
 }

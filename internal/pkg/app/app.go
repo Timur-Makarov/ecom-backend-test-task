@@ -4,33 +4,44 @@ import (
 	"ecom-backend-test-task/internal/pkg/database"
 	"errors"
 	"fmt"
+	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 )
 
 type App struct {
 	repositories *Repositories
-	handlers     *Handlers
+	Handlers     *Handlers
 	services     *Services
 	closeCh      chan os.Signal
-	fatalCh      chan error
-	closers      []func() error
-	server       *http.Server
-	logger       *slog.Logger
+	// Channel for fatal errors in background goroutines
+	fatalCh chan error
+	closers []func() error
+	Http    *fiber.App
+	logger  *slog.Logger
 }
 
 func NewApp() (*App, error) {
-	hardCodedDSN := "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable"
-
-	var err error
-
 	app := &App{
+		logger:  slog.Default(),
 		fatalCh: make(chan error),
 	}
 
-	db, err := app.initDB(hardCodedDSN)
+	err := app.initEnv()
+	if err != nil {
+		return nil, err
+	}
+
+	DSN := os.Getenv("DSN")
+	if DSN == "" {
+		return nil, fmt.Errorf("DSN environment variable not set")
+	}
+
+	db, err := app.initDB(DSN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init db connection: %w", err)
 	}
@@ -46,7 +57,7 @@ func NewApp() (*App, error) {
 
 	err = app.initServer(db)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init http server: %w", err)
+		return nil, fmt.Errorf("failed to init Http Http: %w", err)
 	}
 
 	err = app.initGracefulShutdown()
@@ -60,9 +71,9 @@ func NewApp() (*App, error) {
 func (a *App) Run() error {
 	go func() {
 		a.logger.Info("Server is running on :8080")
-		err := a.server.ListenAndServe()
+		err := a.Http.Listen("127.0.0.1:8080")
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			a.logger.Error("http server failed", "error", err)
+			a.logger.Error("Http Http failed", "error", err)
 		}
 	}()
 
@@ -87,14 +98,29 @@ func (a *App) initClose() {
 	}
 }
 
-func (a *App) initLogger() {
-	logger := slog.Default()
-	a.logger = logger
-}
-
 func (a *App) initGracefulShutdown() error {
 	a.closeCh = make(chan os.Signal, 1)
 	signal.Notify(a.closeCh, os.Interrupt)
+
+	return nil
+}
+
+func (a *App) initEnv() error {
+	envFilepath := "./.dev.env"
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current working directory: %v", err)
+	}
+
+	if strings.HasSuffix(wd, "tests") {
+		envFilepath = "../.tests.env"
+	}
+
+	err = godotenv.Load(envFilepath)
+	if err != nil {
+		return fmt.Errorf("failed to load %s file: %v", envFilepath, err)
+	}
 
 	return nil
 }

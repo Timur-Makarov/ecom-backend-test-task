@@ -1,5 +1,5 @@
 run:
-	cd cmd && go build && ./cmd.exe
+	go build -o cmd/cmd.exe cmd/main.go && ./cmd/cmd.exe
 
 migrate:
-	cd cmd && go build && ./cmd.exe --runMigrations
+	go build -o cmd/cmd.exe cmd/main.go && ./cmd/cmd.exe --runMigrations

@@ -20,22 +20,19 @@ type BannerService struct {
 	Repo BannerRepository
 }
 
-func (s *BannerService) RunCounterUpdater(fatalCh chan error) {
-	go func() {
-		for {
-			time.Sleep(10 * time.Second)
-			if len(statsByMinuteCache) != 0 {
-				err := s.Repo.UpdateOrCreateBannerCounterStats(statsByMinuteCache)
-				if err != nil {
-					fatalCh <- fmt.Errorf("failed to save stats into db: %v \n", err)
-					return
-				}
-				mutex.Lock()
-				statsByMinuteCache = make(map[int]map[uint64]database.CounterStats)
-				mutex.Unlock()
+func (s *BannerService) RunCounterUpdater() error {
+	for {
+		time.Sleep(10 * time.Second)
+		if len(statsByMinuteCache) != 0 {
+			err := s.Repo.UpdateOrCreateBannerCounterStats(statsByMinuteCache)
+			if err != nil {
+				return fmt.Errorf("failed to save stats into db: %v \n", err)
 			}
+			mutex.Lock()
+			statsByMinuteCache = make(map[int]map[uint64]database.CounterStats)
+			mutex.Unlock()
 		}
-	}()
+	}
 }
 
 func (s *BannerService) AddBanner(name string) error {

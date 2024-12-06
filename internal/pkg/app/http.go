@@ -1,34 +1,31 @@
 package app
 
 import (
-	"context"
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
-	"net/http"
-	"time"
 )
 
 func (a *App) initServer(db *gorm.DB) error {
 	a.repositories = GetRepositories(db)
 	a.services = GetServices(a.repositories)
-	a.handlers = GetHandlers(a.services)
+	a.Handlers = GetHandlers(a.services)
 
-	server := &http.Server{
-		Addr: "127.0.0.1:8080",
-	}
+	http := fiber.New()
 
-	http.HandleFunc("/banner/add", a.handlers.BannerHandler.AddBanner)
-	http.HandleFunc("/counter/{bannerID}", a.handlers.BannerHandler.UpdateCounterStats)
-	http.HandleFunc("/stats/{bannerID}", a.handlers.BannerHandler.GetCounterStats)
+	http.Post("/banners", a.Handlers.BannerHandler.AddBanner)
+	http.Put("/banners/:bannerID/stats", a.Handlers.BannerHandler.UpdateCounterStats)
+	http.Get("/banners/:bannerID/stats", a.Handlers.BannerHandler.GetCounterStats)
 
-	a.server = server
+	a.Http = http
 
-	a.services.BannerService.RunCounterUpdater(a.fatalCh)
+	go func() {
+		if err := a.services.BannerService.RunCounterUpdater(); err != nil {
+			a.fatalCh <- err
+		}
+	}()
 
 	a.closers = append(a.closers, func() error {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		return a.server.Shutdown(ctx)
+		return a.Http.Shutdown()
 	})
 
 	return nil

@@ -4,37 +4,23 @@ import (
 	"bytes"
 	"ecom-backend-test-task/internal/pkg/app"
 	"encoding/json"
-	"fmt"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"testing"
 	"time"
 )
 
-type App struct {
-	repositories *app.Repositories
-	handlers     *app.Handlers
-	services     *app.Services
-}
-
-var a = App{}
+var a *app.App
 
 func init() {
-	hardCodedDSN := "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable"
-
-	db, err := gorm.Open(postgres.Open(hardCodedDSN), &gorm.Config{})
+	var err error
+	a, err = app.NewApp()
 	if err != nil {
-		log.Fatalln(fmt.Errorf("failed to init db connection: %w", err))
+		log.Fatal(err)
 	}
-
-	a.repositories = app.GetRepositories(db)
-	a.services = app.GetServices(a.repositories)
-	a.handlers = app.GetHandlers(a.services)
 }
 
 func TestAddBanner(t *testing.T) {
@@ -44,32 +30,24 @@ func TestAddBanner(t *testing.T) {
 
 	requestData := Request{"New-Banner"}
 	jsonBody, err := json.Marshal(requestData)
-	if err != nil {
-		t.Fatalf("failed to marshal JSON: %v", err)
-	}
+	assert.NoError(t, err)
 
-	req, err := http.NewRequest("POST", "/banner/add", bytes.NewBuffer(jsonBody))
-	if err != nil {
-		t.Fatal(err)
-	}
+	req, err := http.NewRequest("POST", "/banners", bytes.NewBuffer(jsonBody))
+	assert.NoError(t, err)
 
 	req.Header.Set("Content-Type", "application/json")
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(a.handlers.BannerHandler.AddBanner)
+	res, err := a.Http.Test(req)
+	assert.NoError(t, err)
 
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-	}
+	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
 
 func TestGetBannerCounterStats(t *testing.T) {
 	hardCodedBannerID := "1"
 
 	requestURL := url.URL{
-		Path: "/stats/" + hardCodedBannerID,
+		Path: "/banners/" + hardCodedBannerID + "/stats/",
 	}
 
 	ts := time.Now()
@@ -86,20 +64,12 @@ func TestGetBannerCounterStats(t *testing.T) {
 	requestURL.RawQuery = queryParams.Encode()
 
 	req, err := http.NewRequest("GET", requestURL.String(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
-	req.SetPathValue("bannerID", hardCodedBannerID)
+	res, err := a.Http.Test(req)
+	assert.NoError(t, err)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(a.handlers.BannerHandler.GetCounterStats)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Error [%v]: %v", status, rr.Body.String())
-	}
+	assert.Equal(t, http.StatusOK, res.StatusCode)
 
 	type GetCounterStatsDTO struct {
 		BannerID      uint64 `json:"bannerId"`
@@ -110,25 +80,19 @@ func TestGetBannerCounterStats(t *testing.T) {
 
 	var response GetCounterStatsDTO
 
-	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
-		t.Fatalf("failed to decode response body: %v", err)
-	}
+	assert.NoError(t, json.NewDecoder(res.Body).Decode(&response))
 }
 
 func TestUpdateBannerCounterStats(t *testing.T) {
 	hardCodedBannerID := "1"
 
-	req, err := http.NewRequest("POST", "/counter/"+hardCodedBannerID, nil)
+	req, err := http.NewRequest("PUT", "/banners/"+hardCodedBannerID+"/stats", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.SetPathValue("bannerID", hardCodedBannerID)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(a.handlers.BannerHandler.UpdateCounterStats)
-	handler.ServeHTTP(rr, req)
+	res, err := a.Http.Test(req)
+	assert.NoError(t, err)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Error [%v]: %v", status, rr.Body.String())
-	}
+	assert.Equal(t, http.StatusOK, res.StatusCode)
 }

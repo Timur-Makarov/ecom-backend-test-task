@@ -5,6 +5,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
+	"os"
 	"time"
 )
 
@@ -29,6 +30,11 @@ func (a *App) initDB(dsn string) (*gorm.DB, error) {
 }
 
 func (a *App) checkIfShouldMigrate() bool {
+	env := os.Getenv("ENVIRONMENT")
+	if env == "tests" {
+		return false
+	}
+
 	shouldMigrate := flag.Bool("runMigrations", false, "whether or not to run db migrations")
 	flag.Parse()
 
