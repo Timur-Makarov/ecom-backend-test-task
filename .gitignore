@@ -1,2 +1,4 @@
 */*.exe
-*.env
+.test.env
+.dev.env
+.env

@@ -114,7 +114,7 @@ func (a *App) initEnv() error {
 	}
 
 	if strings.HasSuffix(wd, "tests") {
-		envFilepath = "../.tests.env"
+		envFilepath = "../.test.env"
 	}
 
 	err = godotenv.Load(envFilepath)

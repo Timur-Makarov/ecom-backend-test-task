@@ -31,7 +31,7 @@ func (a *App) initDB(dsn string) (*gorm.DB, error) {
 
 func (a *App) checkIfShouldMigrate() bool {
 	env := os.Getenv("ENVIRONMENT")
-	if env == "tests" {
+	if env != "development" {
 		return false
 	}
 
