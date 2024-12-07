@@ -11,7 +11,7 @@ type Services struct {
 func GetServices(repos *Repositories) *Services {
 	return &Services{
 		BannerService: &bannerServices.BannerService{
-			Repo: repos.BannerRepository,
+			Repo: repos.PGCBannerRepository,
 		},
 	}
 }

@@ -1,20 +1,23 @@
 package app
 
 import (
+	"fmt"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 )
 
-func (a *App) initServer(db *gorm.DB) error {
-	a.repositories = GetRepositories(db)
+func (a *App) initServer() error {
+	if a.repositories == nil {
+		return fmt.Errorf("app repositories should not be nil")
+	}
+
 	a.services = GetServices(a.repositories)
 	a.Handlers = GetHandlers(a.services)
 
 	http := fiber.New()
 
-	http.Post("/banners", a.Handlers.BannerHandler.AddBanner)
-	http.Put("/banners/:bannerID/stats", a.Handlers.BannerHandler.UpdateCounterStats)
-	http.Get("/banners/:bannerID/stats", a.Handlers.BannerHandler.GetCounterStats)
+	http.Post("/banners", a.Handlers.BannerHandler.CreateBanner)
+	http.Put("/banners/:bannerID/stats", a.Handlers.BannerHandler.UpdateCounterStatistics)
+	http.Get("/banners/:bannerID/stats", a.Handlers.BannerHandler.GetCounterStatistics)
 
 	a.Http = http
 

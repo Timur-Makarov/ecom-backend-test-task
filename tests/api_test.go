@@ -23,7 +23,7 @@ func init() {
 	}
 }
 
-func TestAddBanner(t *testing.T) {
+func TestCreateBanner(t *testing.T) {
 	type Request struct {
 		Name string `json:"name"`
 	}
@@ -43,7 +43,7 @@ func TestAddBanner(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
 
-func TestGetBannerCounterStats(t *testing.T) {
+func TestGetCounterStatistics(t *testing.T) {
 	hardCodedBannerID := "1"
 
 	requestURL := url.URL{
@@ -83,7 +83,7 @@ func TestGetBannerCounterStats(t *testing.T) {
 	assert.NoError(t, json.NewDecoder(res.Body).Decode(&response))
 }
 
-func TestUpdateBannerCounterStats(t *testing.T) {
+func TestUpdateBannerCounterStatistics(t *testing.T) {
 	hardCodedBannerID := "1"
 
 	req, err := http.NewRequest("PUT", "/banners/"+hardCodedBannerID+"/stats", nil)

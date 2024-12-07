@@ -2,32 +2,43 @@ package repositories
 
 import (
 	"context"
-	"ecom-backend-test-task/internal/pkg/database"
+	"ecom-backend-test-task/internal/banner/domain"
+	"ecom-backend-test-task/internal/pkg/database/pgg"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"time"
 )
 
-type BannerRepository struct {
+type PGGBannerRepository struct {
 	DB *gorm.DB
 }
 
-func (r BannerRepository) SaveBanner(newBanner database.Banner) error {
+func (r PGGBannerRepository) CreateBanner(name string) error {
+	pggBanner := pgg.Banner{
+		Name: name,
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	return r.DB.WithContext(ctx).Create(&newBanner).Error
+	return r.DB.WithContext(ctx).Create(&pggBanner).Error
 }
 
-func (r BannerRepository) UpdateOrCreateBannerCounterStats(stats map[int]map[uint64]database.CounterStats) error {
+func (r PGGBannerRepository) CreateOrUpdateCounterStatistics(stats map[int]map[int32]domain.CounterStatistic) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	var allCounterStats []database.CounterStats
+	var allCounterStats []pgg.CounterStatistic
 
 	for _, value := range stats {
 		for _, v := range value {
-			allCounterStats = append(allCounterStats, v)
+			ppgCS := pgg.CounterStatistic{
+				BannerID:      v.BannerID,
+				TimestampTo:   v.TimestampTo,
+				TimestampFrom: v.TimestampFrom,
+				Count:         v.Count,
+			}
+			allCounterStats = append(allCounterStats, ppgCS)
 		}
 	}
 
@@ -46,14 +57,14 @@ func (r BannerRepository) UpdateOrCreateBannerCounterStats(stats map[int]map[uin
 	return query.Error
 }
 
-func (r BannerRepository) GetBannerCounterStats(bannerID, tsFrom, tsTo uint64) ([]database.CounterStats, error) {
+func (r PGGBannerRepository) GetBannerCounterStatistics(bannerID int32, tsFrom, tsTo int64) ([]domain.CounterStatistic, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var stats []database.CounterStats
+	var stats []pgg.CounterStatistic
 
 	err := r.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var banner database.Banner
+		var banner pgg.Banner
 
 		if err := tx.First(&banner, bannerID).Error; err != nil {
 			return err
@@ -76,5 +87,16 @@ func (r BannerRepository) GetBannerCounterStats(bannerID, tsFrom, tsTo uint64) (
 		return nil, err
 	}
 
-	return stats, nil
+	var convertedStats []domain.CounterStatistic
+
+	for _, stat := range stats {
+		convertedStats = append(convertedStats, domain.CounterStatistic{
+			BannerID:      stat.BannerID,
+			TimestampTo:   stat.TimestampTo,
+			TimestampFrom: stat.TimestampFrom,
+			Count:         stat.Count,
+		})
+	}
+
+	return convertedStats, nil
 }

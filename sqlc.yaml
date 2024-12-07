@@ -1,0 +1,12 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "internal/pkg/database/sqlc/query.sql"
+    schema: "internal/pkg/database/sqlc/migrations"
+    gen:
+      go:
+        package: "pgc"
+        out: "internal/pkg/database/pgc"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        json_tags_case_style: "camel"

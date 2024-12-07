@@ -1,7 +1,9 @@
 package app
 
 import (
+	"context"
 	"flag"
+	"github.com/jackc/pgx/v5"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
@@ -9,7 +11,7 @@ import (
 	"time"
 )
 
-func (a *App) initDB(dsn string) (*gorm.DB, error) {
+func (a *App) initGormDB(dsn string) (*gorm.DB, error) {
 	var db *gorm.DB
 	var err error
 
@@ -27,6 +29,22 @@ func (a *App) initDB(dsn string) (*gorm.DB, error) {
 	}
 
 	return db, nil
+}
+
+func (a *App) initSqlcDB(dsn string) (*pgx.Conn, error) {
+	ctx, ctxClose := context.WithTimeout(context.Background(), 10*time.Second)
+	defer ctxClose()
+
+	conn, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	a.closers = append(a.closers, func() error {
+		return conn.Close(context.Background())
+	})
+
+	return conn, nil
 }
 
 func (a *App) checkIfShouldMigrate() bool {

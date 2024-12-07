@@ -1,4 +1,4 @@
-package database
+package pgg
 
 import (
 	"github.com/go-gormigrate/gormigrate/v2"

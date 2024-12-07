@@ -1,19 +1,19 @@
 package services
 
 import (
-	"ecom-backend-test-task/internal/pkg/database"
+	"ecom-backend-test-task/internal/banner/domain"
 	"fmt"
 	"sync"
 	"time"
 )
 
 var mutex = &sync.Mutex{}
-var statsByMinuteCache = make(map[int]map[uint64]database.CounterStats)
+var statsByMinuteCache = make(map[int]map[int32]domain.CounterStatistic)
 
 type BannerRepository interface {
-	SaveBanner(newBanner database.Banner) error
-	UpdateOrCreateBannerCounterStats(stats map[int]map[uint64]database.CounterStats) error
-	GetBannerCounterStats(bannerID uint64, tsFrom uint64, tsTo uint64) ([]database.CounterStats, error)
+	CreateBanner(name string) error
+	CreateOrUpdateCounterStatistics(stats map[int]map[int32]domain.CounterStatistic) error
+	GetBannerCounterStatistics(bannerID int32, tsFrom int64, tsTo int64) ([]domain.CounterStatistic, error)
 }
 
 type BannerService struct {
@@ -24,26 +24,22 @@ func (s *BannerService) RunCounterUpdater() error {
 	for {
 		time.Sleep(10 * time.Second)
 		if len(statsByMinuteCache) != 0 {
-			err := s.Repo.UpdateOrCreateBannerCounterStats(statsByMinuteCache)
+			err := s.Repo.CreateOrUpdateCounterStatistics(statsByMinuteCache)
 			if err != nil {
 				return fmt.Errorf("failed to save stats into db: %v \n", err)
 			}
 			mutex.Lock()
-			statsByMinuteCache = make(map[int]map[uint64]database.CounterStats)
+			statsByMinuteCache = make(map[int]map[int32]domain.CounterStatistic)
 			mutex.Unlock()
 		}
 	}
 }
 
-func (s *BannerService) AddBanner(name string) error {
-	newBanner := database.Banner{
-		Name: name,
-	}
-
-	return s.Repo.SaveBanner(newBanner)
+func (s *BannerService) CreateBanner(name string) error {
+	return s.Repo.CreateBanner(name)
 }
 
-func (s *BannerService) UpdateBannerCounterStats(bannerID uint64) {
+func (s *BannerService) UpdateBannerCounterStats(bannerID int32) {
 	ts := time.Now()
 	minute := ts.Minute()
 	timestampFrom := ts.Truncate(time.Minute).Unix()
@@ -51,41 +47,41 @@ func (s *BannerService) UpdateBannerCounterStats(bannerID uint64) {
 
 	mutex.Lock()
 	if statsByMinuteCache[minute] == nil {
-		statsByMinuteCache[minute] = make(map[uint64]database.CounterStats)
+		statsByMinuteCache[minute] = make(map[int32]domain.CounterStatistic)
 	}
 
 	if statsByMinuteCache[minute][bannerID].Count == 0 {
-		newCounterStats := database.CounterStats{
+		newCounterStats := domain.CounterStatistic{
 			BannerID:      bannerID,
-			TimestampFrom: uint64(timestampFrom),
-			TimestampTo:   uint64(timestampTo),
-			Count:         uint64(1),
+			TimestampFrom: timestampFrom,
+			TimestampTo:   timestampTo,
+			Count:         1,
 		}
 
 		statsByMinuteCache[minute][bannerID] = newCounterStats
 	} else {
 		counterStats := statsByMinuteCache[minute][bannerID]
-		counterStats.Count += uint64(1)
+		counterStats.Count += 1
 		statsByMinuteCache[minute][bannerID] = counterStats
 	}
 	mutex.Unlock()
 }
 
 type GetCounterStatsDTO struct {
-	BannerID      uint64 `json:"bannerId"`
-	Count         uint64 `json:"count"`
-	TimestampFrom uint64 `json:"timestampFrom"`
-	TimestampTo   uint64 `json:"timestampTo"`
+	BannerID      int32 `json:"bannerId"`
+	TimestampFrom int64 `json:"timestampFrom"`
+	TimestampTo   int64 `json:"timestampTo"`
+	Count         int64 `json:"count"`
 }
 
-func (s *BannerService) GetCounterStats(bannerID uint64, tsFrom, tsTo uint64) (*GetCounterStatsDTO, error) {
-	counterStats, err := s.Repo.GetBannerCounterStats(bannerID, tsFrom, tsTo)
+func (s *BannerService) GetCounterStats(bannerID int32, tsFrom, tsTo int64) (*GetCounterStatsDTO, error) {
+	counterStats, err := s.Repo.GetBannerCounterStatistics(bannerID, tsFrom, tsTo)
 
 	if err != nil {
 		return nil, err
 	}
 
-	var count uint64
+	var count int64
 
 	for _, stat := range counterStats {
 		count += stat.Count
@@ -93,9 +89,9 @@ func (s *BannerService) GetCounterStats(bannerID uint64, tsFrom, tsTo uint64) (*
 
 	response := &GetCounterStatsDTO{
 		BannerID:      bannerID,
-		Count:         count,
 		TimestampFrom: tsFrom,
 		TimestampTo:   tsTo,
+		Count:         count,
 	}
 
 	return response, nil

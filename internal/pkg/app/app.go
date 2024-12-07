@@ -1,10 +1,12 @@
 package app
 
 import (
-	"ecom-backend-test-task/internal/pkg/database"
 	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/joho/godotenv"
 	"log/slog"
 	"net/http"
@@ -41,21 +43,48 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("DSN environment variable not set")
 	}
 
-	db, err := app.initDB(DSN)
+	/////////////// GORM
+
+	//db, err := app.initGormDB(DSN)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to init db connection: %w", err)
+	//}
+	//
+	//shouldMigrate := app.checkIfShouldMigrate()
+	//
+	//if shouldMigrate {
+	//	err = pgg.MigrateDB(db)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("failed to run db migrations: %w", err)
+	//	}
+	//}
+	//
+	//app.repositories = GetPGGRepositories(db)
+
+	/////////////// SQLC
+
+	dbConn, err := app.initSqlcDB(DSN)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init db connection: %w", err)
+		return nil, err
 	}
 
 	shouldMigrate := app.checkIfShouldMigrate()
 
 	if shouldMigrate {
-		err := database.MigrateDB(db)
+		m, err := migrate.New("file://internal/pkg/database/sqlc/migrations/", DSN)
 		if err != nil {
-			return nil, fmt.Errorf("failed to run db migrations: %w", err)
+			return nil, err
 		}
+		err = m.Up()
+		if err != nil {
+			return nil, err
+		}
+		m.Close()
 	}
 
-	err = app.initServer(db)
+	app.repositories = GetPGCRepositories(dbConn)
+
+	err = app.initServer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Http Http: %w", err)
 	}
