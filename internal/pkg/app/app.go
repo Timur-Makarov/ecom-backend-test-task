@@ -71,7 +71,7 @@ func NewApp() (*App, error) {
 	shouldMigrate := app.checkIfShouldMigrate()
 
 	if shouldMigrate {
-		m, err := migrate.New("file://internal/pkg/database/sqlc/migrations/", DSN)
+		m, err := migrate.New("file://internal/pkg/database/sqlc_config/migrations/", DSN)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +79,10 @@ func NewApp() (*App, error) {
 		if err != nil {
 			return nil, err
 		}
-		m.Close()
+		err, err = m.Close()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	app.repositories = GetPGCRepositories(dbConn)
@@ -110,8 +113,7 @@ func (a *App) Run() error {
 	case <-a.closeCh:
 		a.logger.Info("App is shutting down")
 		a.initClose()
-	case err := <-a.fatalCh:
-		a.logger.Error(err.Error())
+	case <-a.fatalCh:
 		a.initClose()
 	}
 
@@ -122,7 +124,7 @@ func (a *App) initClose() {
 	for i := len(a.closers) - 1; i >= 0; i-- {
 		err := a.closers[i]()
 		if err != nil {
-			a.logger.Error("failed to close resource", "i", i, "error", err)
+			a.logger.Error("failed to close resource", "i:", i, "error:", err)
 		}
 	}
 }

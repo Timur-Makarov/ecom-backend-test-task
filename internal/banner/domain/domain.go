@@ -7,6 +7,8 @@ var InvalidPathError = fiber.NewError(fiber.StatusBadRequest, "Invalid URL path.
 var InvalidParamsError = fiber.NewError(fiber.StatusBadRequest, "Invalid query params. Please check it and try again")
 var InternalServerError = fiber.NewError(fiber.StatusInternalServerError, "Internal server error. Please try again later")
 
+var GetNotFoundError = func(msg string) error { return fiber.NewError(fiber.StatusNotFound, msg) }
+
 type Banner struct {
 	ID   int32  `json:"id"`
 	Name string `json:"name"`

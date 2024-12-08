@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 )
@@ -13,16 +14,19 @@ func (a *App) initServer() error {
 	a.services = GetServices(a.repositories)
 	a.Handlers = GetHandlers(a.services)
 
-	http := fiber.New()
+	http := fiber.New(fiber.Config{
+		ErrorHandler: errorHandler,
+	})
 
 	http.Post("/banners", a.Handlers.BannerHandler.CreateBanner)
-	http.Put("/banners/:bannerID/stats", a.Handlers.BannerHandler.UpdateCounterStatistics)
 	http.Get("/banners/:bannerID/stats", a.Handlers.BannerHandler.GetCounterStatistics)
+	http.Put("/banners/:bannerID/stats", a.Handlers.BannerHandler.UpdateCounterStatistics)
 
 	a.Http = http
 
 	go func() {
 		if err := a.services.BannerService.RunCounterUpdater(); err != nil {
+			a.logger.Error("RunCounterUpdater failed with error:", err)
 			a.fatalCh <- err
 		}
 	}()
@@ -30,6 +34,28 @@ func (a *App) initServer() error {
 	a.closers = append(a.closers, func() error {
 		return a.Http.Shutdown()
 	})
+
+	return nil
+}
+
+func errorHandler(ctx *fiber.Ctx, err error) error {
+	code := fiber.StatusInternalServerError
+
+	var e *fiber.Error
+	if errors.As(err, &e) {
+		code = e.Code
+	}
+
+	err = ctx.JSON(fiber.Map{
+		"error": fiber.Map{
+			"code":    code,
+			"message": err.Error(),
+		},
+	})
+
+	if err != nil {
+		ctx.Status(fiber.StatusInternalServerError)
+	}
 
 	return nil
 }

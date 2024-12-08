@@ -63,7 +63,7 @@ func (h BannerHandler) GetCounterStatistics(c *fiber.Ctx) error {
 
 	res, err := h.Service.GetCounterStats(int32(bannerIdInt), tsFromInt, tsToInt)
 	if err != nil {
-		return domain.InternalServerError
+		return err
 	}
 
 	err = c.JSON(res)

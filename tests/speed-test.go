@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	const runs = 150
+	const runs = 100
 	var timeTook time.Duration
 
 	for i := 0; i < runs; i++ {

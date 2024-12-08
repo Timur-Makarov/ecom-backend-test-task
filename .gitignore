@@ -2,3 +2,4 @@
 .test.env
 .dev.env
 .env
+.idea
